@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Movie=require('../models/Movie');
 const config = require('../config/config');
+const { exec } = require('child_process');
 
 // User registration controller
 async function registerUser(req, res) {
@@ -51,16 +52,30 @@ async function login(req, res) {
 }
 
 async function getMovies(req, res){
-  console.log("body is" +req.body);
+  var idArray;
+  const userInput  = req.body;
+  var listOfId=[];
+  console.log("checking for user input",userInput.description);
+  const pythonProcess = exec(`python similarityscript.py "${userInput.description}"`, (error, stdout, stderr) => {
+    if (error) {
+      console.error(`Error: ${error.message}`);
+      return res.status(500).json({ error: 'Internal Server Error' });
+    }
+    if (stderr) {
+      console.error(`stderr: ${stderr}`);
+    }
+    try {
+      idArray = stdout
+      console.log(idArray)
+    } catch (parseError) {
+      console.error('Error parsing JSON:', parseError.message);
+      return;
+    }
+  });
 
-  try{
-    const movie=await Movie.findAll({ where: { id:1 } });
-    console.log("movie is", movie);
-    res.status(201).json(req.body);
-  }
-  catch(err){
-    console.log(err)
-  }
+  pythonProcess.on('exit', (code) => {
+    console.log(`Python script exited with code ${code}`);
+  });
 
   
 }

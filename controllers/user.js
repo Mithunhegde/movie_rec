@@ -4,14 +4,14 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Movie=require('../models/Movie');
 const config = require('../config/config');
-const { exec } = require('child_process');
+const { spawn } = require('child_process');
+const fs = require('fs');
+const { Sequelize } = require('sequelize');
 
 // User registration controller
 async function registerUser(req, res) {
   try {
     const { username, password } = req.body;
-
-
     // Hash the user's password using bcrypt
     const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -52,32 +52,56 @@ async function login(req, res) {
 }
 
 async function getMovies(req, res){
-  var idArray;
-  const userInput  = req.body;
-  var listOfId=[];
-  console.log("checking for user input",userInput.description);
-  const pythonProcess = exec(`python similarityscript.py "${userInput.description}"`, (error, stdout, stderr) => {
-    if (error) {
-      console.error(`Error: ${error.message}`);
-      return res.status(500).json({ error: 'Internal Server Error' });
-    }
-    if (stderr) {
-      console.error(`stderr: ${stderr}`);
-    }
+
+  const userInput = req.body;
+  let arr_json = '';
+
+  const pythonProcess = spawn('python3', ['similarityscript.py', userInput.description]);
+
+  pythonProcess.stdout.on('data', (data) => {
+    arr_json = data.toString().trim();
     try {
-      idArray = stdout
-      console.log(idArray)
-    } catch (parseError) {
-      console.error('Error parsing JSON:', parseError.message);
+
+      const idArray = JSON.parse(arr_json);
+      console.log('Received data from Python:',idArray);
+      // Further processing of 'idArray'
+      Movie.findAll({
+        attributes: ['poster'], // Replace with the column you want to retrieve
+        where: {
+          id: idArray, // Replace with the actual column name
+        },
+      })
+      .then((results) => {
+        // Extract values from the results
+        const equivalentColumnValues = results.map((result) => result.poster);
+    
+        // Now, 'equivalentColumnValues' contains an array of values from the 'columnNameToSearch' column
+        console.log("equivalent values",equivalentColumnValues);
+        res.json({ equivalentColumnValues });
+      })
+      .catch((error) => {
+        console.error('Error:', error);
+        // Handle any errors here
+      });
+
+    } catch (error) {
+      console.error('Error parsing JSON:', error.message);
       return;
     }
   });
 
-  pythonProcess.on('exit', (code) => {
-    console.log(`Python script exited with code ${code}`);
+  pythonProcess.on('error', (error) => {
+    console.error('Python script execution error:', error);
+    return res.status(500).json({ error: 'Internal Server Error' });
   });
 
+  pythonProcess.on('exit', (code) => {
+    console.log(`Python script exited with code ${code}`);
+    // Handle the script exit, if needed
+  });
   
+
+
 }
 
 module.exports = {

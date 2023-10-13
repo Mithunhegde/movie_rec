@@ -1,5 +1,3 @@
-# Read user input from command line (provided by Node.js)
-# Your Python code here, based on the user input
 import sys
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -7,14 +5,12 @@ from sklearn.metrics.pairwise import linear_kernel
 from nltk.corpus import stopwords
 import numpy as np
 import nltk
-nltk.download('stopwords')
 import json
 
 user_input = sys.argv[1]
 
 # Load the CSV file into a pandas DataFrame
 df = pd.read_csv('Movie_combined.csv')  
-
 # Input plot to find similar plots for
 input_plot = user_input
 
@@ -47,4 +43,6 @@ top_10_similar_plots = df.iloc[top_10_indices]
 idlist= top_10_similar_plots['id']
 
 arr=np.array(idlist)
-print(arr)
+arr=arr.tolist()
+arr_json = json.dumps(arr)
+print(arr_json)
